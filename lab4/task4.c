@@ -5,11 +5,9 @@ int main(int argc, char ** argv){
 	item *head = NULL;
 	item const *node = NULL;
 	size_t var;
-
 	while(scanf("%d", &num)!=0){
 		llist_add_front(head, llist_create(num));
 	}
-
 	sum = llist_sum(head);
 	printf("%d\nType variant: ", sum);
 	
