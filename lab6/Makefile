@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-c -ansi -pedantic -Wall -Werror
 
 run: lab6 
-	./lab6 ./lab.bmp 1
+
 
 lab6: lab6.o 
 	$(CC) lab6.o  -o $@
