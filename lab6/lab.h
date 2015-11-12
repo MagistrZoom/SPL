@@ -29,3 +29,4 @@ char *rotate_bmp(bmp_header_t*, char*, int, uint32_t);
 bmp_header_t *modify_headers(bmp_header_t*, uint32_t);
 static uint32_t round_4(uint32_t);
 static void swap(uint32_t*, uint32_t*);
+static uint32_t calculate_size(bmp_header_t*);	

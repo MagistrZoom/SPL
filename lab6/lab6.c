@@ -5,8 +5,6 @@ int main(int argc, char **argv){
 	size_t rd = 0;
 	char *buf = NULL, *rot_buf = NULL;
 	uint32_t size = 0;
-	uint32_t line;
-	uint32_t rot_line;
 	int rot; /*rot 1 clockwise
 			  * rot -1 anti-clockwise
 			  */
@@ -55,15 +53,9 @@ int main(int argc, char **argv){
 	rot = atoi(argv[2]);
 	if(rot == 1 || rot == -1){
 		rot_buf = rotate_bmp(bmp_header, buf, rot, size);
-		
-		line = round_4(bmp_header->biWidth * 3);
-		rot_line = round_4(bmp_header->biHeight * 3);
-	
-		if(bmp_header->biWidth > bmp_header->biHeight){
-			size = (line-(bmp_header->biWidth-1)*3)*bmp_header->biHeight + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
-		} else {
-			size = (rot_line-(bmp_header->biHeight-1)*3)*bmp_header->biWidth + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
-		}
+
+		size = calculate_size(bmp_header);
+
 		header = modify_headers(bmp_header, size);
 
 		t = time(NULL);
@@ -91,15 +83,30 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+static uint32_t calculate_size(bmp_header_t *bmp_header){	
+	uint32_t line = round_4(bmp_header->biWidth * 3);
+ 	uint32_t rot_line = round_4(bmp_header->biHeight * 3);
+	uint32_t size;
+
+	if(bmp_header->biWidth > bmp_header->biHeight){
+		size = (line-(bmp_header->biWidth-1)*3)*bmp_header->biHeight + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
+	} else {
+		size = (rot_line-(bmp_header->biHeight-1)*3)*bmp_header->biWidth + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
+	}
+	return size;
+}
+
 static uint32_t round_4(uint32_t n){
 	return n%4!=0?n+(4-n%4):n;
 }
+
 static void swap(uint32_t *a, uint32_t *b){
 	uint32_t tmp;
 	tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
+
 bmp_header_t *modify_headers(bmp_header_t *original_header, uint32_t size){	 
 	bmp_header_t *header = malloc(sizeof(bmp_header_t));
 	memcpy(header, original_header, sizeof(bmp_header_t));
@@ -112,6 +119,7 @@ bmp_header_t *modify_headers(bmp_header_t *original_header, uint32_t size){
 
 	return header;
 }
+
 char *rotate_bmp(bmp_header_t *header, char *original_buf, int rot, uint32_t size){
 	uint32_t i, j;
 	char *buf = malloc(2 * size);
