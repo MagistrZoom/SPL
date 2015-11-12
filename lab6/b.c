@@ -60,10 +60,11 @@ int main(int argc, char **argv){
 		rot_line = round_4(bmp_header->biHeight * 3);
 	
 		if(bmp_header->biWidth > bmp_header->biHeight){
-			size = (line-(bmp_header->biWidth-1)*3)*bmp_header->biHeight + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
+			size = (line-(bmp_header->biWidth-1)*3)*bmp_header->biHeight + 3*(bmp_header->biWidth-1)*(bmp_header->biHeight-1);
 		} else {
-			size = (rot_line-(bmp_header->biHeight-1)*3)*bmp_header->biWidth + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
+			size = (rot_line-(bmp_header->biHeight-1)*3)*bmp_header->biWidth + 3*(bmp_header->biWidth-1)*(bmp_header->biHeight-1);
 		}
+		printf("size %u\n", size);
 		header = modify_headers(bmp_header, size);
 
 		t = time(NULL);
@@ -106,17 +107,21 @@ bmp_header_t *modify_headers(bmp_header_t *original_header, uint32_t size){
 	
 	swap(&header->biWidth, &header->biHeight);
 	swap(&header->biXPelsPerMeter, &header->biYPelsPerMeter);
-
+/*
 	header->biSizeImage = size;
 	header->bfileSize = size + original_header->bOffBits;
-
+*/
 	return header;
-}
+}/*
+int biggest(int a, int b){
+	return ((a+b)+abs(a+b))/2;
+}*/
 char *rotate_bmp(bmp_header_t *header, char *original_buf, int rot, uint32_t size){
 	uint32_t i, j;
 	char *buf = malloc(2 * size);
 	uint32_t line = round_4(header->biWidth * 3);
 	uint32_t rot_line = round_4(header->biHeight * 3);
+
 	/* clockwise */
 	if(rot == 1){
 		for(i = 0; i < header->biHeight; i++){
