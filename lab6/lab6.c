@@ -67,13 +67,11 @@ int main(int argc, char **argv){
 		fwrite(header, 1, sizeof(bmp_header_t), bmp);
 		fseek(bmp, header->bOffBits, SEEK_SET);
 		fwrite(rot_buf, 1, size, bmp);
-
+		fclose(bmp);
 	} else {
 		puts("Invalid direction");
 		return 5;
 	}
-
-	fclose(bmp);
 
 	free(bmp_header);
 	free(header);
