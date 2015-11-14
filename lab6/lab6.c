@@ -20,7 +20,10 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	bmp = fopen(argv[1], "rb");
-
+	if(bmp == NULL){
+		puts("Invalid file");
+		return 2;
+	}
 	rd = fread(bmp_header, 1, sizeof(bmp_header_t), bmp);
 	if(rd != sizeof(bmp_header_t) || bmp_header->bfType != 0x4D42){
 		puts("Invalid file");
