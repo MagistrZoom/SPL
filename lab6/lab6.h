@@ -1,6 +1,12 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <malloc.h>
+
 #define FORMAT_SIZE 2
+#define BMP_HEADER_SIZE 54
 
 typedef enum img_errors{
 	SUCCESS,
@@ -11,8 +17,10 @@ typedef enum img_errors{
 	EWRONGHEAD
 } img_errors;
 
+
+/* TODO: MOVE AWAY */
 #pragma pack(push, 2)
-typedef struct {
+typedef struct bmp_header_t{
        uint16_t bfType;                /*magic header should be BM*/
        uint32_t bfileSize;             /*size of bmp in bytes*/
        uint32_t bfReserved;            /*reserved*/
@@ -42,7 +50,7 @@ typedef struct spec_ops_t{
 
 	op_callback_t write_spec_head;
 	op_callback_t write_spec_body;
-} spec_opts_t;
+} spec_ops_t;
 
 typedef struct pixel_t{
 	uint8_t b;
@@ -53,8 +61,6 @@ typedef struct pixel_t{
 struct image_t{
 	uint32_t width;
 	uint32_t height;
-	uint32_t depth;
-	uint32_t offset;
 	spec_ops_t *ops;
 	pixel_t *pixels;
 };
