@@ -3,7 +3,17 @@
 static uint32_t round_4(uint32_t n){
 	return n%4!=0?n+(4-n%4):n;
 }
+static char *ts_name(){
+	char *name = malloc(256);
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(name, "pics/%d-%d-%d %d:%d:%d.bmp", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
+	return name;
+}
+
+
+/* TODO: MOVE AWAY TO OTHER FILES*/
 
 /* Read 2 first bytes of file
  * @RETURN error code
@@ -42,10 +52,38 @@ int read_bmp_head(FILE *f_image, image_t *image){
 
 /* at this time f_image points to bitmap. Need to read it without trash */
 int read_bmp_body(FILE *f_image, image_t *image){
-	
+	size_t count;
+	uint32_t i;
+	unsigned int diff = round_4(image->width*3)-image->width*3;
+	pixel_t *t, *buf;
+	image->pixels = malloc(image->width*image->height*sizeof(pixel_t));
+	t = image->pixels;
+	buf = malloc(diff + image->width*3);
+
+	for(i = 0; i < image->height; i++){
+		count = fread(buf, sizeof(pixel_t), image->width, f_image);
+		fseek(f_image, diff, SEEK_CUR);
+		if(count != image->width){
+			free(buf);
+			return EREAD;
+		}
+		memcpy(t, buf, image->width*3);
+		t += image->width;
+	}
+	free(buf);
+	fclose(f_image);
 	return SUCCESS;
 }
 int write_bmp_head(FILE *f_image, image_t *image){
+	bmp_header_t bmp_header;
+	size_t count;
+	FILL_BMP_HEADER(bmp_header, image->width, image->height)
+	
+	count = fwrite(&bmp_header, sizeof(char), FORMAT_SIZE, f_image);
+	if(count != FORMAT_SIZE)
+		return EWRITE;
+	count = fseek(f_image, )
+
 	return SUCCESS;
 }
 int write_bmp_body(FILE *f_image, image_t *image){
@@ -54,15 +92,9 @@ int write_bmp_body(FILE *f_image, image_t *image){
 
 int get_spec_ops(uint16_t type, spec_ops_t *ops){
 	int i;
-	struct spec_ops_t bmp_ops; 
 
 	spec_ops_t ops_list[1];
-
-	bmp_ops.type = 0x4D42; 
-	bmp_ops.read_spec_head = read_bmp_head; 
-	bmp_ops.read_spec_body = read_bmp_body; 
-	bmp_ops.write_spec_head = write_bmp_head; 
-	bmp_ops.write_spec_body = write_bmp_body;
+	OPERATION_LIST(0x4D42, bmp)
 	ops_list[0] = bmp_ops;
 
 	for(i = 0; i < 1; i++){
@@ -71,8 +103,10 @@ int get_spec_ops(uint16_t type, spec_ops_t *ops){
 			return SUCCESS;
 		}
 	}
+
 	return ENOIMAGE; 
 }
+
 int read_image(const char *imagepath, image_t *image){
 	/* first of all we need to recognize which type of this file*/
 	int err;
@@ -84,51 +118,59 @@ int read_image(const char *imagepath, image_t *image){
 	if(f_image == NULL)
 		return EOPENFILE;
 
-	err = get_type(f_image, &type);
-	if(err != SUCCESS) return err;
+	DO_AND_CHECK(get_type(f_image, &type))
+
 	/* now we need to get list of operations for this filetype*/
-	err = get_spec_ops(type, ops);			
-	if(err != SUCCESS) return err;
+	DO_AND_CHECK(get_spec_ops(type, ops))
 	image->ops = ops;
 	
 	/* and now we can read file */
-	err = (image->ops)->read_spec_head(f_image, image);			
-	if(err != SUCCESS) return err;
+	DO_AND_CHECK((image->ops)->read_spec_head(f_image, image))			
+	DO_AND_CHECK((image->ops)->read_spec_body(f_image, image))
+	fclose(f_image);
+	return SUCCESS;
+}
+
+int write_image(char *imagepath, image_t *image){
+	int err;
+	FILE *f_image = fopen(imagepath, "wb");
+	if(f_image == NULL)
+		return EWRITE;
+
+	DO_AND_CHECK((image->ops)->write_spec_head(f_image, image))
+	DO_AND_CHECK((image->ops)->write_spec_body(f_image, image))
+
+	return SUCCESS;
+}
+
+int rotate(image_t *old, image_t *new){
+	return 0;
+}
+
+int main(int argc, char **argv){
+	image_t image;
+	image_t rotated;
+	char *name;
+	struct spec_ops_t *ops = malloc(sizeof(spec_ops_t));
+
+	int err = read_image("gingerkitten.bmp", &image);
+	if(err != SUCCESS)
+		return err;
+
+	rotated.pixels = malloc(sizeof(pixel_t)*image.width*image.height);
+	get_spec_ops(0x4D42, ops);
+	rotated.ops = ops;
 	
-	err = (image->ops)->read_spec_body(f_image, image);			
-	if(err != SUCCESS) return err;
+	rotate(&image, &rotated);
+	
+	/*make a name for rotated pic*/
+	name = ts_name(); 
+	
+	write_image(name, &rotated);
+
+	free(image.pixels);	free(image.ops); free(rotated.pixels); free(rotated.ops);free(name);
 
 	return SUCCESS;
 }
 
 
-int main(int argc, char **argv){
-	image_t image;
-	int err = read_image("gingerkitten.bmp", &image);
-	return err;
-}
-
-/*char *rotate_bmp(bmp_header_t *header, char *original_buf, int rot, uint32_t size){
-	uint32_t i, j;
-	char *buf = malloc(2 * size);
-	uint32_t line = round_4(header->biWidth * 3);
-	uint32_t rot_line = round_4(header->biHeight * 3);
-	
-	if(rot == 1){
-		for(i = 0; i < header->biHeight; i++){
-			for(j = 0; j < header->biWidth; j++){
-				memcpy(buf+(header->biWidth - j - 1)*rot_line+(i)*3, original_buf+i*line+j*3, 3);
-			}
-		}
-	} else 
-  
-	if(rot == -1){
-		for(i = 0; i < header->biHeight; i++){
-			for(j = 0; j < header->biWidth; j++){
-				memcpy(buf+j*rot_line+(header->biHeight - i - 1)*3, original_buf+i*line+j*3, 3);
-			}
-		}
-	}
-	return buf;
-}
-*/
