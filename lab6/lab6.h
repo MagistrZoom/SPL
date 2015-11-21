@@ -24,14 +24,19 @@
 #define FILL_BMP_HEADER(OBJ, WIDTH, HEIGHT)\
 	OBJ.bfType = 0x4D42;\
 	OBJ.bfileSize = 122+round_4(WIDTH*3)*HEIGHT;\
+	OBJ.bfReserved = 0;\
+	OBJ.bOffBits = 122;\
 	OBJ.biSize = 108;\
 	OBJ.biWidth = WIDTH;\
 	OBJ.biHeight = HEIGHT;\
 	OBJ.biPlanes = 1;\
 	OBJ.biBitCount = 24;\
-	OBJ.biSizeImage = OBJ.bfileSize - 122;\
+	OBJ.biSizeImage = round_4(WIDTH*3)*HEIGHT;\
 	OBJ.biXPelsPerMeter = 3780;\
 	OBJ.biYPelsPerMeter = 3780;\
+	OBJ.biClrUsed = 0;\
+	OBJ.biCompresion = 0;\
+	OBJ.biClrImportant = 0;\
 
 typedef enum img_errors{
 	SUCCESS,
@@ -92,7 +97,7 @@ struct image_t{
 
 int read_image(const char *imagepath, image_t *image);
 int get_type(FILE *image, uint16_t *type);
-int get_spec_ops(uint16_t type, spec_ops_t *current_ops); /* an array of callbacks */
+int get_spec_ops(uint16_t type, spec_ops_t *current_ops); /*an array of callbacks*/
 
 int rotate(image_t *image_src, image_t *image_dest);
 

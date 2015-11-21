@@ -1,14 +1,11 @@
 CC=gcc
-CFLAGS=-c -ansi -pedantic -Wall -Werror
+CFLAGS=-ansi -pedantic -Wall -Werror
 
 run: lab6 
 
 
-lab6: lab6.o 
-	$(CC) lab6.o  -o $@
-
-lab6.o: lab6.c 
-	$(CC) -g $(CFLAGS) $< -o $@
+lab6: lab6.c lab6.h
+	$(CC) -g $(CFLAGS)  -o $@ $<
 
 clean:
 	rm -f lab6 lab6.o

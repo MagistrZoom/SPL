@@ -1,5 +1,8 @@
 #include "lab6.h"
 
+static pixel_t *get_pixel(pixel_t *pixels, uint32_t line, uint32_t x, uint32_t y){
+	return pixels+y*line+x;
+}
 static uint32_t round_4(uint32_t n){
 	return n%4!=0?n+(4-n%4):n;
 }
@@ -71,22 +74,34 @@ int read_bmp_body(FILE *f_image, image_t *image){
 		t += image->width;
 	}
 	free(buf);
-	fclose(f_image);
 	return SUCCESS;
 }
 int write_bmp_head(FILE *f_image, image_t *image){
 	bmp_header_t bmp_header;
 	size_t count;
 	FILL_BMP_HEADER(bmp_header, image->width, image->height)
-	
-	count = fwrite(&bmp_header, sizeof(char), FORMAT_SIZE, f_image);
-	if(count != FORMAT_SIZE)
+	count = fwrite(&bmp_header, sizeof(char), BMP_HEADER_SIZE, f_image);
+	if(count != BMP_HEADER_SIZE)
 		return EWRITE;
-	count = fseek(f_image, )
+	count = fseek(f_image, 122, SEEK_SET);
+	if(count != 0)
+		return EWRITE;
 
 	return SUCCESS;
 }
 int write_bmp_body(FILE *f_image, image_t *image){
+	uint32_t i;
+	unsigned int diff = round_4(image->width*3)-image->width*3;
+	size_t count;
+	pixel_t *t = image->pixels;
+	for(i = 0; i < image->height; i++){
+		count = fwrite(t, sizeof(pixel_t), image->width, f_image);
+		fseek(f_image, diff, SEEK_CUR);
+		if(count != image->width){
+			return EWRITE;
+		}
+		t += count;
+	}
 	return SUCCESS;
 }
 
@@ -139,11 +154,22 @@ int write_image(char *imagepath, image_t *image){
 
 	DO_AND_CHECK((image->ops)->write_spec_head(f_image, image))
 	DO_AND_CHECK((image->ops)->write_spec_body(f_image, image))
-
+	fclose(f_image);
 	return SUCCESS;
 }
 
 int rotate(image_t *old, image_t *new){
+	uint32_t i, j;
+	pixel_t *pixel;
+	new->width = old->height;
+	new->height = old->width;
+
+	for(i = 0; i < old->height; i++){
+		for(j = 0; j < old->width; j++){
+			pixel =	get_pixel(new->pixels, new->width, i, new->height - j - 1);
+			*pixel = *(get_pixel(old->pixels, old->width, j, i));	
+		}
+	}
 	return 0;
 }
 
@@ -151,11 +177,10 @@ int main(int argc, char **argv){
 	image_t image;
 	image_t rotated;
 	char *name;
+	int err;
 	struct spec_ops_t *ops = malloc(sizeof(spec_ops_t));
 
-	int err = read_image("gingerkitten.bmp", &image);
-	if(err != SUCCESS)
-		return err;
+	DO_AND_CHECK(read_image("gingerkitten.bmp", &image))
 
 	rotated.pixels = malloc(sizeof(pixel_t)*image.width*image.height);
 	get_spec_ops(0x4D42, ops);
@@ -166,9 +191,10 @@ int main(int argc, char **argv){
 	/*make a name for rotated pic*/
 	name = ts_name(); 
 	
-	write_image(name, &rotated);
+	DO_AND_CHECK(write_image(name, &rotated))
 
-	free(image.pixels);	free(image.ops); free(rotated.pixels); free(rotated.ops);free(name);
+
+	free(image.pixels);	free(image.ops); free(rotated.pixels); free(rotated.ops); free(name);
 
 	return SUCCESS;
 }
