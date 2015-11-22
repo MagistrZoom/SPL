@@ -1,8 +1,8 @@
 #include "lab6.h"
 #include "lib.h"
 #include "bmp.h"
-pixel_t *get_pixel(pixel_t *pixels, uint32_t line, uint32_t x, uint32_t y){
-	return pixels+y*line+x;
+pixel_t *get_pixel(image_t const *image, uint32_t x, uint32_t y){
+	return image->pixels+y*image->width+x;
 }
 
 uint32_t round_4(uint32_t n){
@@ -42,7 +42,7 @@ int get_spec_ops(uint16_t type, spec_ops_t *ops){
 	return ENOIMAGE; 
 }
 
-int read_image(const char *imagepath, image_t *image){
+int read_image(char const *imagepath, image_t *image){
 	/* first of all we need to recognize which type of this file*/
 	int err;
 	uint16_t type;
@@ -66,7 +66,7 @@ int read_image(const char *imagepath, image_t *image){
 	return SUCCESS;
 }
 
-int write_image(char *imagepath, image_t *image){
+int write_image(char const *imagepath, image_t const *image){
 	int err;
 	FILE *f_image = fopen(imagepath, "wb");
 	if(f_image == NULL)
@@ -79,14 +79,14 @@ int write_image(char *imagepath, image_t *image){
 	return SUCCESS;
 }
 
-int rotate(image_t *old, image_t *new){
+int rotate(image_t const *old, image_t *new){
 	uint32_t i, j;
 	new->width = old->height;
 	new->height = old->width;
 
 	for(i = 0; i < old->height; i++){
 		for(j = 0; j < old->width; j++){
-			*(get_pixel(new->pixels, new->width, i, new->height - j - 1)) = *(get_pixel(old->pixels, old->width, j, i));	
+			*(get_pixel(new, i, new->height - j - 1)) = *(get_pixel(old, j, i));	
 		}
 	}
 	return 0;

@@ -1,24 +1,5 @@
 #pragma once
 
-#define BMP_HEADER_SIZE 54
-
-#define FILL_BMP_HEADER(OBJ, WIDTH, HEIGHT)\
-	OBJ.bfType = 0x4D42;\
-	OBJ.bfileSize = 122+round_4(WIDTH*3)*HEIGHT;\
-	OBJ.bfReserved = 0;\
-	OBJ.bOffBits = 122;\
-	OBJ.biSize = 108;\
-	OBJ.biWidth = WIDTH;\
-	OBJ.biHeight = HEIGHT;\
-	OBJ.biPlanes = 1;\
-	OBJ.biBitCount = 24;\
-	OBJ.biSizeImage = round_4(WIDTH*3)*HEIGHT;\
-	OBJ.biXPelsPerMeter = 3780;\
-	OBJ.biYPelsPerMeter = 3780;\
-	OBJ.biClrUsed = 0;\
-	OBJ.biCompresion = 0;\
-	OBJ.biClrImportant = 0;\
-
 
 #pragma pack(push, 2)
 typedef struct bmp_header_t{
@@ -43,5 +24,5 @@ typedef struct bmp_header_t{
 
 int read_bmp_head(FILE *f_image, image_t *image);
 int read_bmp_body(FILE *f_image, image_t *image);
-int write_bmp_head(FILE *f_image, image_t *image);
-int write_bmp_body(FILE *f_image, image_t *image);
+int write_bmp_head(FILE *f_image, image_t const *image);
+int write_bmp_body(FILE *f_image, image_t const *image);
