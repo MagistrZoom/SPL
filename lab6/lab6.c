@@ -3,15 +3,16 @@
 static pixel_t *get_pixel(pixel_t *pixels, uint32_t line, uint32_t x, uint32_t y){
 	return pixels+y*line+x;
 }
+
 static uint32_t round_4(uint32_t n){
-	return n%4!=0?n+(4-n%4):n;
+	return n%4?n+(4-n%4):n;
 }
+
 static char *ts_name(){
 	char *name = malloc(256);
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
 	sprintf(name, "pics/%d-%d-%d %d:%d:%d.bmp", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
 	return name;
 }
 
@@ -76,6 +77,7 @@ int read_bmp_body(FILE *f_image, image_t *image){
 	free(buf);
 	return SUCCESS;
 }
+
 int write_bmp_head(FILE *f_image, image_t *image){
 	bmp_header_t bmp_header;
 	size_t count;
@@ -89,14 +91,18 @@ int write_bmp_head(FILE *f_image, image_t *image){
 
 	return SUCCESS;
 }
+
 int write_bmp_body(FILE *f_image, image_t *image){
 	uint32_t i;
 	unsigned int diff = round_4(image->width*3)-image->width*3;
+	char trash[4] = {
+		0,0,0
+	};
 	size_t count;
 	pixel_t *t = image->pixels;
 	for(i = 0; i < image->height; i++){
 		count = fwrite(t, sizeof(pixel_t), image->width, f_image);
-		fseek(f_image, diff, SEEK_CUR);
+		fwrite(&trash, 1, diff, f_image);
 		if(count != image->width){
 			return EWRITE;
 		}
@@ -154,6 +160,7 @@ int write_image(char *imagepath, image_t *image){
 
 	DO_AND_CHECK((image->ops)->write_spec_head(f_image, image))
 	DO_AND_CHECK((image->ops)->write_spec_body(f_image, image))
+
 	fclose(f_image);
 	return SUCCESS;
 }
@@ -180,7 +187,7 @@ int main(int argc, char **argv){
 	int err;
 	struct spec_ops_t *ops = malloc(sizeof(spec_ops_t));
 
-	DO_AND_CHECK(read_image("gingerkitten.bmp", &image))
+	DO_AND_CHECK(read_image(argv[1], &image))
 
 	rotated.pixels = malloc(sizeof(pixel_t)*image.width*image.height);
 	get_spec_ops(0x4D42, ops);
