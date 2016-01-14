@@ -1,137 +1,38 @@
-#include "lab.h"
+#include "lab6.h"
+#include "lib.h"
+#include "bmp.h"
+
+static void ts_name(char name[256]){
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	sprintf(name, "../../lab6_pics/%d-%d-%d %d:%d:%d.bmp", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
 
 int main(int argc, char **argv){
-	FILE *bmp = NULL;
-	size_t rd = 0;
-	char *buf = NULL, *rot_buf = NULL;
-	uint32_t size = 0;
-	uint32_t line;
-	uint32_t rot_line;
-	int rot; /*rot 1 clockwise
-			  * rot -1 anti-clockwise
-			  */
-	time_t t;
-	struct tm tm;
+	image_t image;
+	image_t rotated;
+	char name[256];
+	int err;
+	struct spec_ops_t *ops = malloc(sizeof(spec_ops_t));
 
-	char *generated_name = malloc(256*sizeof(char));
-	bmp_header_t *bmp_header = malloc(sizeof(bmp_header_t));
-	bmp_header_t *header = NULL;
+	DO_AND_CHECK(read_image(argv[1], &image))
 
-	if(argc != 3){
-		puts("Invalid arguments");
-		return 1;
-	}
-	bmp = fopen(argv[1], "rb");
-
-	rd = fread(bmp_header, 1, sizeof(bmp_header_t), bmp);
-	if(rd != sizeof(bmp_header_t) || bmp_header->bfType != 0x4D42){
-		puts("Invalid file");
-		return 2;
-	}
-
-	size = bmp_header->biSizeImage;
-
-	buf = malloc(size);
-
-	if(buf == NULL){
-		puts("Something went wrong");
-		return 3;
-	}
-
-	if(bmp_header->biBitCount != 24){
-		puts("Bitcount in this file isnt 24");
-		return 4;
-	}
-
-	fseek(bmp, bmp_header->bOffBits, SEEK_SET);	
-	rd = fread(buf, 1, size, bmp);
-	fclose(bmp);
-
-	if(rd != size){
-		puts("Invalid bitmap section");
-		return 5;
-	}
+	rotated.pixels = malloc(sizeof(pixel_t)*image.width*image.height);
+	get_spec_ops(0x4D42, ops);
+	rotated.ops = ops;
 	
-	rot = atoi(argv[2]);
-	if(rot == 1 || rot == -1){
-		rot_buf = rotate_bmp(bmp_header, buf, rot, size);
-		
-		line = round_4(bmp_header->biWidth * 3);
-		rot_line = round_4(bmp_header->biHeight * 3);
+	rotate(&image, &rotated);
 	
-		if(bmp_header->biWidth > bmp_header->biHeight){
-			size = (line-(bmp_header->biWidth-1)*3)*bmp_header->biHeight + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
-		} else {
-			size = (rot_line-(bmp_header->biHeight-1)*3)*bmp_header->biWidth + 3*(bmp_header->biWidth)*(bmp_header->biHeight);
-		}
-		header = modify_headers(bmp_header, size);
+	free(image.pixels);	free(image.ops); 
 
-		t = time(NULL);
-		tm = *localtime(&t);
-		sprintf(generated_name, "pics/%d* %d-%d-%d %d:%d:%d.bmp", (rot==1)?90:-90,tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-	
-		bmp = fopen(generated_name, "wb");
-	
-		fwrite(header, 1, sizeof(bmp_header_t), bmp);
-		fseek(bmp, header->bOffBits, SEEK_SET);
-		fwrite(rot_buf, 1, size, bmp);
+	/*make a name for rotated pic*/
+	ts_name(name); 
+	DO_AND_CHECK(write_image(name, &rotated))
 
-	} else {
-		puts("Invalid direction");
-		return 5;
-	}
+	free(rotated.pixels); free(rotated.ops); 
 
-	fclose(bmp);
-
-	free(bmp_header);
-	free(header);
-	free(rot_buf);
-	free(buf);
-	free(generated_name);
-	return 0;
+	return SUCCESS;
 }
 
-static uint32_t round_4(uint32_t n){
-	return n%4!=0?n+(4-n%4):n;
-}
-static void swap(uint32_t *a, uint32_t *b){
-	uint32_t tmp;
-	tmp = *a;
-	*a = *b;
-	*b = tmp;
-}
-bmp_header_t *modify_headers(bmp_header_t *original_header, uint32_t size){	 
-	bmp_header_t *header = malloc(sizeof(bmp_header_t));
-	memcpy(header, original_header, sizeof(bmp_header_t));
-	
-	swap(&header->biWidth, &header->biHeight);
-	swap(&header->biXPelsPerMeter, &header->biYPelsPerMeter);
 
-	header->biSizeImage = size;
-	header->bfileSize = size + original_header->bOffBits;
-
-	return header;
-}
-char *rotate_bmp(bmp_header_t *header, char *original_buf, int rot, uint32_t size){
-	uint32_t i, j;
-	char *buf = malloc(2 * size);
-	uint32_t line = round_4(header->biWidth * 3);
-	uint32_t rot_line = round_4(header->biHeight * 3);
-	/* clockwise */
-	if(rot == 1){
-		for(i = 0; i < header->biHeight; i++){
-			for(j = 0; j < header->biWidth; j++){
-				memcpy(buf+(header->biWidth - j - 1)*rot_line+(i)*3, original_buf+i*line+j*3, 3);
-			}
-		}
-	} else 
-	/* anti-clockwise */	
-	if(rot == -1){
-		for(i = 0; i < header->biHeight; i++){
-			for(j = 0; j < header->biWidth; j++){
-				memcpy(buf+j*rot_line+(header->biHeight - i - 1)*3, original_buf+i*line+j*3, 3);
-			}
-		}
-	}
-	return buf;
-}

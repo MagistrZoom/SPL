@@ -1,14 +1,17 @@
 CC=gcc
-CFLAGS=-c -ansi -pedantic -Wall -Werror
+CFLAGS=-g -c -ansi -pedantic -Wall -Werror
 
 run: lab6 
 
 
-lab6: lab6.o 
-	$(CC) lab6.o  -o $@
+lab6: lab6.o bmp.o lib.o
+	$(CC)  -o $@ $^
 
-lab6.o: lab6.c 
-	$(CC) -g $(CFLAGS) lab6.c -o $@
-
+lab6.o: lab6.c
+	$(CC) $(CFLAGS) -o $@ $<
+bmp.o: bmp.c
+	$(CC) $(CFLAGS) -o $@ $<
+lib.o: lib.c
+	$(CC) $(CFLAGS) -o $@ $<
 clean:
-	rm -f lab6 lab6.o
+	rm -f lab6 *.o
