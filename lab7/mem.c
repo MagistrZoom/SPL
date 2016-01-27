@@ -18,50 +18,87 @@ void* heap_init(size_t initial_size){
 	return (char*)ptr + sizeof(struct mem_t);
 }
 
+struct mem_t* allocate_blocks(struct mem_t* last, size_t request){
+
+	char *allocated = mmap((char*)(last)+last->capacity+sizeof(struct mem_t), request, 
+		PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if(allocated == (char*)(last)+last->capacity+sizeof(struct mem_t)){
+		/* series of pages. Merge last with new pages */
+		last->capacity += round_4096(request);
+		return last;
+	} else {
+		/* page allocated somewhere else */
+		last->next = (struct mem_t*)allocated;
+		(last->next)->capacity = round_4096(request) - sizeof(struct mem_t);
+		return (struct mem_t*)allocated;
+	}
+}
+struct mem_t* cut_if_necessary(struct mem_t *ptr, size_t request){
+	struct mem_t *free = NULL;
+	if(ptr->capacity >= request + sizeof(struct mem_t)){
+		/*cut into 2 blocks*/
+		free = (struct mem_t*)((char*)(ptr) + request + sizeof(struct mem_t));
+		free->is_free = 1;
+		free->capacity = ptr->capacity - request - sizeof(struct mem_t);
+		free->next = NULL;
+		
+		ptr->capacity = request;
+		ptr->is_free = 0;
+	} 
+	return free;
+}
+
 void* _malloc(size_t request){
 	struct mem_t *ptr = llist_look_for_space(HEAP_START, request);
 	struct mem_t *new = NULL;
-	struct mem_t *last = NULL;
-	struct mem_t *top = NULL;
-	void *new_page;
+	struct mem_t *free = NULL;
 	if(ptr){
 		/*everything is cool, we can split memory and return requested piece*/
-		new = (struct mem_t*)((char*)ptr + request);
-		/*TODO: make a feature which will construct mem_t by address and args*/
-		llist_add_front(NULL, new);
-		new->capacity = ptr->capacity - request;
+		new = (struct mem_t*)((char*)ptr + request + sizeof(struct mem_t));
+
+		new->capacity = ptr->capacity - request - sizeof(struct mem_t);
 		new->is_free = 1;
 
-		llist_add_front(ptr, new);
+		llist_add_front(new, ptr);
 		ptr->capacity = request;
 		ptr->is_free = 0;
-	} else {
-		/*everything is bad, need to kick the kernel */
-		new_page = mmap(HEAP_START, request, 
-					PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		last = llist_get_a_last_element(HEAP_START);
-		new = (struct mem_t*)new_page;
-		/* cut into 2 blocks if mmap returns bytes more than necessary */
-		if(round_4096(request) - request - 2*sizeof(struct mem_t) > 0){
-			top = (struct mem_t*)((char*)(new_page + request + 2*sizeof(struct mem_t)));
-			top->capacity = round_4096(request) - request - 2*sizeof(struct mem_t);
-			top->is_free = 1;
 
-			new->capacity = request; 
-			llist_add_front(top, new);
-		} else {
-			llist_add_front(new, NULL);
-			new->capacity = round_4096(request) - sizeof(struct mem_t); 
-		}
-		new->is_free = 0;
-		llist_add_front(new, last);
-		ptr = new;
+	} else {
+		ptr = llist_get_a_last_element(HEAP_START);
+		/*try to allocate nearest page and concat last mem_t or allocate full
+		request*/
+		new = allocate_blocks(ptr, request);
+
+		free = cut_if_necessary(new, request);
+
+		llist_add_front(free, new);
+		ptr = (struct mem_t*)(new);
+		
 	}
-	return ptr;
+	return (char*)ptr+sizeof(struct mem_t);
 }
 
-void free(void *ptr){
-	
+void _free(void *ptr){
+	struct mem_t *mem_prev_block;
+	struct mem_t *mem_block = llist_get_mem_block(HEAP_START, (struct mem_t*)((char*)ptr-sizeof(struct mem_t)));
+	if(mem_block){
+		mem_block->is_free = 1;
+		if((mem_block->next)->is_free == 1 && 
+			mem_block->next == (struct mem_t*)((char*)(mem_block)+mem_block->capacity+sizeof(struct mem_t))){
+			/* need to merge following block  */
+			mem_block->capacity += (mem_block->next)->capacity;
+			mem_block->next = (mem_block->next)->next;
+		}
+		mem_prev_block = llist_get_prev_mem_block(HEAP_START, (struct mem_t*)((char*)ptr-sizeof(struct mem_t)));
+		if(mem_prev_block->is_free == 1 &&
+			mem_block == (struct mem_t*)((char*)(mem_prev_block)+mem_prev_block->capacity+sizeof(struct mem_t))){
+
+			/* merge previous block */
+			mem_prev_block->capacity += mem_block->capacity;
+			mem_prev_block->next = mem_block->next;
+		}
+	} 
 }
 
 void memalloc_debug_struct_info(FILE* f,

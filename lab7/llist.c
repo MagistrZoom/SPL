@@ -20,3 +20,15 @@ struct mem_t* llist_get_a_last_element(struct mem_t* ptr){
 	for( ; ptr->next; ptr = ptr->next);
 	return ptr;
 }
+
+struct mem_t* llist_get_mem_block(struct mem_t *ptr, struct mem_t *target){
+	for( ; ptr != target && ptr; ptr = ptr->next);
+	return ptr;
+}
+
+struct mem_t* llist_get_prev_mem_block(struct mem_t *ptr, struct mem_t *target){
+	for( ; ptr->next != target && ptr; ptr = ptr->next){
+
+	}
+	return ptr;
+}
